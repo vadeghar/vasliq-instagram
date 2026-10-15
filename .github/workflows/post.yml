@@ -1,0 +1,31 @@
+name: Post to Instagram
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 min (GitHub may start a few minutes late)
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: instagram-post
+  cancel-in-progress: false
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q requests
+      - name: Publish due posts
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python run_queue.py
+      - name: Save queue status
+        run: |
+          git config user.name "vasliq-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add queue.json post_log.txt 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m "Posted from queue" && git push)
